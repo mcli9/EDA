@@ -1,0 +1,204 @@
+---
+title: "S470_Final_Project"
+author: "Zining Qi, Yexin Lu, Mengchu Li"
+date: "4/22/2021"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(tidyr)
+library(Boruta)
+library(caret)
+library(rpart.plot)     
+library(doMC)
+library(GGally)
+library(broom)
+```
+
+```{r}
+data = read.csv('showup.csv')
+head(data)
+```
+
+```{r}
+data$Gender <- factor(data$Gender, levels = c("M", "F"))
+data$No.show <- factor(make.names(data$Noshow))
+data$Diabetes <- as.logical(data$Diabetes)
+data$Alcoholism <- as.logical(data$Alcoholism)
+data$Hipertension <- as.logical(data$Hipertension)
+data$Handcap <- as.logical(data$Handcap)
+data$Scholarship <- as.logical(data$Scholarship)
+data$SMS_received <- as.logical(data$SMS_received)
+```
+
+```{r}
+recode = function(x) {
+    if(x == "Yes") {
+        return(1)
+    } else if(x == "No") {
+        return(0)
+    } else {
+        return(0)
+    }
+}
+data_recoded = apply(data[,14,drop=FALSE], 1, recode)
+data$recoded = data_recoded
+```
+
+
+```{r}
+summary(data)
+```
+
+```{r}
+data <- data[data$Age>0,]
+```
+
+
+
+```{r}
+ggplot(data, aes(x=No.show, fill=No.show)) + geom_bar()
+```
+
+```{r}
+status_table <- table(data$No.show)
+status_table
+```
+
+
+```{r}
+sum(data$No.show == 'No')/(sum(data$No.show == 'No')+sum(data$No.show == 'Yes'))
+```
+
+# Age
+```{r}
+g_Age_1 <- ggplot(data, aes(x=Age, fill = No.show)) + geom_histogram(bins=40)
+g_Age_2 <- ggplot(data, aes(x=No.show, y=Age, col=No.show)) + geom_boxplot()
+grid.arrange(g_Age_1, g_Age_2,ncol=2, top='Age distribution, outliers and Status implication')
+```
+
+```{r}
+g_Gender_1 <- ggplot(data, aes(x=Gender, fill=Gender)) + geom_bar(position="dodge")
+g_Gender_2 <- ggplot(data, aes(x=Gender, fill=No.show)) + geom_bar(position="fill")
+grid.arrange(g_Gender_1, g_Gender_2,ncol=2, top='Gender distribution')
+```
+
+# SMS Reminder
+```{r}
+density_SMS = ggplot(data, aes(x = SMS_received,fill = No.show))+
+    geom_bar() #+ ggtitle("Bar plot for SMS-received")
+prop_SMS = ggplot(data, aes(x = SMS_received,fill = No.show))+
+    geom_bar(position="fill") +ylab("Proportion")# + ggtitle("Bar plot for SMS-received(proportion)")
+grid.arrange(density_SMS, prop_SMS,ncol=2,top='Bar plot for SMS-received')
+```
+
+#Awaiting Time
+```{r}
+data$Awaitingtime = abs(floor(difftime(data$AppointmentDay, data$ScheduledDay, units = "days")))
+head(data)
+```
+
+```{r}
+g_AwaitingTime_1 <- ggplot(data, aes(x=No.show, y=Awaitingtime, col=No.show)) + geom_boxplot()
+g_AwaitingTime_2 <- ggplot(data, aes(x=Awaitingtime, fill=No.show)) + 
+                                geom_density(alpha=0.30) + 
+                                coord_cartesian(xlim=c(0, 100))
+
+grid.arrange(g_AwaitingTime_1, g_AwaitingTime_2,ncol=2, top='AwaitingTime distribution')
+```
+
+# Binary Variables
+```{r}
+g_Diabetes <- ggplot(data, aes(x=Diabetes, fill=No.show)) + geom_bar(position="fill")
+g_Alcoholism <- ggplot(data, aes(x=Alcoholism, fill=No.show)) + geom_bar(position="fill")
+g_Hipertension <- ggplot(data, aes(x=Hipertension, fill=No.show)) + geom_bar(position="fill")
+g_Handcap <- ggplot(data, aes(x=Handcap, fill=No.show)) + geom_bar(position="fill")
+g_Scholarship <- ggplot(data, aes(x=Scholarship, fill=No.show)) + geom_bar(position="fill")
+g_binary <- c(g_Diabetes, g_Alcoholism, g_Hipertension, g_Handcap,
+              g_Scholarship)
+grid.arrange(g_Diabetes, g_Alcoholism, g_Hipertension, g_Handcap, ncol=2, top='Binary variables effect (1/2)')
+```
+
+## Logistic
+
+## one predictor 
+
+```{r}
+logit_age = glm(No.show ~ sqrt(Age), family = binomial, data =data)
+summary(logit_age)
+```
+
+```{r}
+gg = ggplot(data, aes(x = sqrt(Age), y = recoded)) + geom_point() +
+    #geom_jitter(width = 0, height = 0.1) +
+    geom_smooth(method = "lm")
+gg + geom_smooth(method = "glm", method.args = list(family = "binomial"), color = "orange") +
+    xlab("sqrt(Age)") +
+    ylab("Probability of showup") 
+```
+
+```{r}
+head(data)
+is.factor(data$No.show)
+```
+
+```{r}
+levels(data$No.show) <- c(1,0)
+```
+
+```{r}
+head(data)
+```
+
+```{r}
+data_lg = data.frame(data$No.show, data$Age, data$Awaitingtime, data$SMS_received)
+summary(data_lg)
+```
+
+```{r}
+data_lg$data.No.show = as.numeric(data_lg$data.No.show)
+data_lg$data.Awaitingtime = as.numeric(data_lg$data.Awaitingtime)
+data_lg$data.SMS_received = as.numeric(data_lg$data.SMS_received)
+```
+
+```{r}
+names(data_lg)[1] <- "NoShow"
+names(data_lg)[2] <- "Age"
+names(data_lg)[3] <- "AwaitingTime"
+names(data_lg)[4] <- "SMS_Received"
+```
+
+```{r}
+data_lg$NoShow[data_lg$NoShow == 1] <- 0
+data_lg$NoShow[data_lg$NoShow == 2] <- 1
+```
+
+```{r}
+summary(data_lg)
+```
+
+```{r}
+ggpairs(data_lg)
+```
+
+```{r}
+noshow_lg = glm(NoShow ~ AwaitingTime*SMS_Received, family = "binomial", data = data_lg)
+summary(noshow_lg)
+```
+
+```{r}
+at_df = expand.grid(AwaitingTime = 0:179, SMS_Received = as.numeric(c(TRUE,FALSE)))
+at_int = augment(noshow_lg, type.predict = "response", newdata = at_df)
+ggplot(at_int, aes(x = AwaitingTime, y = .fitted, group = SMS_Received, color = SMS_Received)) +
+    geom_line(size = 1.5) +
+    xlab("Awaiting Time of patient") +
+    ylab("Probability of not Show Up") +
+    labs(color = "Did they receive SMS?") +
+  ggtitle("Plot of Probability of not Show Up vs. Awaiting & SMS Reminder")
+```
+
+
+
