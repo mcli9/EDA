@@ -1,0 +1,116 @@
+---
+title: "Mini Project 2"
+author: "Yexin Lu"
+date: "2021Äê4ÔÂ2ÈÕ"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(magrittr)
+library(tidyverse)
+library(ggbiplot)
+library(ggrepel)
+library(plyr)
+library(MASS)
+```
+
+## Part I
+
+### 1989
+
+```{r}
+votes89 <- read_csv("C:/Users/admin/Desktop/S470/mini project2/congress/1989/votes.csv")
+members89 <- read_csv("C:/Users/admin/Desktop/S470/mini project2/congress/1989/members.csv")
+```
+
+```{r}
+recode = function(x) {
+    if(is.na(x)) {
+        return(0)
+    } else if(x == "Yea") {
+        return(1)
+    } else if(x == "Nay") {
+        return(-1)
+    } else {
+        return(0)
+    }
+}
+```
+
+
+```{r}
+joined89 = join(members89, votes89, by = "id")
+ids = colnames(joined89)
+colnames(joined89) = str_replace(ids, "-", ".")
+head(joined89)
+```
+
+
+```{r}
+votes89_recoded = data.frame(apply(joined89[,c(-1, -2, -3, -4, -5, -6)], 1:2, recode))
+head(votes89_recoded)
+```
+
+
+```{r}
+senators89_prcomp = prcomp(votes89_recoded, scale. = FALSE)
+plot(senators89_prcomp$sdev^2 / sum(senators89_prcomp$sdev^2), main = "Scree plot for PCA on the senators by bills matrix in 1989", ylab = "eigenvalues")
+ggbiplot(senators89_prcomp, scale = 0, var.axes = FALSE, group = members89$party)  +
+    scale_color_manual(values = c("D" = "darkblue", "R" = "firebrick")) + 
+  ggtitle("PCA biplot of senators' voting in 1989")
+```
+We use PCA on the senators by bills matrix to analysis the voting records. And we use unstandardized method to do this analysis, because each senator¡¯s vote on each of the bills is record as "Yea", "Nay", "Not voting", which can be viewed as same scale. 
+And two years that we choose to analysis polarizationare are 1989 and 2014.   
+From the above scree plot for PCA in 1989, we can see that the variance explained by the first component is very large and the variance explained by the other components are very small which approximately zero. Thus, one-dimensional structire is enough to explain the relationships between the senators. 
+From the PCA biplot of senators' voting in 1989, we don't see any obvious outliers. And the pattern of the points is very obvious. Points in the plot are seperated into two groups. For example, most of the points for Democrats lies on the postive part of PC1. However, most of the points for Republicans lies on the negative part of PC1.
+
+### 2014
+
+```{r}
+votes14 <- read_csv("C:/Users/admin/Desktop/S470/mini project2/congress/2014/votes.csv")
+members14 <- read_csv("C:/Users/admin/Desktop/S470/mini project2/congress/2014/members.csv")
+```
+
+
+```{r}
+joined14 = join(members14, votes14, by = "id")
+ids = colnames(joined14)
+colnames(joined14) = str_replace(ids, "-", ".")
+head(joined14)
+```
+
+
+```{r}
+votes14_recoded = data.frame(apply(joined14[,c(-1, -2, -3, -4, -5, -6)], 1:2, recode))
+head(votes14_recoded)
+```
+
+
+```{r}
+senators14_prcomp = prcomp(votes14_recoded, scale. = FALSE)
+plot(senators14_prcomp$sdev^2 / sum(senators14_prcomp$sdev^2), main = "Scree plot for PCA on the senators by bills matrix in 2014", ylab = "eigenvalues")
+ggbiplot(senators14_prcomp, scale = 0, var.axes = FALSE, group = members14$party)  +
+    scale_color_manual(values = c("D" = "darkblue", "R" = "firebrick", "I" = "green")) +
+  ggtitle("PCA biplot of senators' voting in 2014")
+```
+
+
+From the above scree plot for PCA in 2014, we can see that the variance explained by the first component is also very large and the variance explained by the other components are very small which approximately zero. Thus, one-dimensional structire is enough to explain the relationships between the senators in 2014. 
+From the PCA biplot of senators' voting in 2014, we can see two green dots indicates intermediate in plot. We ignore this group of observation, because there are only two dots in the dataset, which is very small. 
+From this biplot, we can see that there ares several outliers lies in middle of the plot. For example, there are one blue dot, which indicate Democrats, lies in the center of the plot, And there are two red dots, which indicate Republicans, lies in the bottom of the plot. However, the pattern of the points is still obvious if we ignore the outliers. Points in the biplot are seperated into two groups. For example, all points for Democrats lies on the negative part of PC1, and all points for Republicans, lies on the positive part of PC1, which is opposite from what we got for 1989 senators' voting.
+Another difference in the PCA biplots in the 1989 and 2014 is the distance between two parties. In 1989, the distance between two parties is very small. However, in 2014, the distance between two parties is very large. This observation shows that the polarization has a huge increase in 2014 compare with 1989. More generally, the polarization in later year are more aggrevate than the polarization in earlier years.
+
+
+
+### Part II
+
+```{r}
+filenames <- list.files("C:/Users/admin/Desktop/S470/mini project2/congress/2014")
+filenames
+```
+
