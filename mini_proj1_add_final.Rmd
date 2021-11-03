@@ -1,0 +1,240 @@
+---
+title: "MINI_Project1"
+author: "Yexin Lu, Zining Qi, Mengchu Li"
+date: "3/2/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(broom)
+```
+
+## Part 1: GDP and life expectancy in 2007
+
+```{r}
+gapminder = gapminder::gapminder
+head(gapminder)
+```
+
+```{r}
+gapminder_2007 = subset(gapminder, year == 2007)
+```
+
+
+# Simple Linear Regression
+```{r}
+ggplot(gapminder_2007, aes(x=gdpPercap, y = lifeExp, color = continent)) +
+  geom_point() + xlab(" GDP per capita (dollars)") +  ylab(" Life expectancy (years)") + ggtitle("Scatter plot of life expectancy") 
+```
+
+```{r}
+ggplot(gapminder_2007, aes(x = gdpPercap, y = lifeExp)) + geom_point() +
+  stat_smooth(method = 'lm', se = FALSE) + xlab(" GDP per capita (dollars)") +
+  ggtitle('Plot of simple linear model')
+```
+
+```{r}
+exp_gdp_lm = lm(lifeExp ~ gdpPercap, data = gapminder_2007)
+ggplot(augment(exp_gdp_lm)) + geom_point(aes(x = gdpPercap, y = .resid)) +
+  ggtitle("Residuals of simple linear regression")
+```
+
+
+From the plot of points, the overall trend is positive as GDP per capita increase. And the linear regression line also prove that. But the data can't be well described by the simple linear regression model. Because the basic trend of data is not linear from the plot. There is some curvature. 
+
+And from the residual plot, there is a obvious trend of residuals with gdp per capita. This also indicate that the simple linear regression doesn't work well for the data.
+
+So more complicated model is required. 
+
+# Linear Regression with Log Transformation
+```{r}
+ggplot(gapminder_2007, aes(x = log(gdpPercap), y = lifeExp)) + geom_point() +
+  stat_smooth(method = 'lm', se = FALSE) + 
+  ggtitle('Plot of log transformation linear model')
+```
+
+```{r}
+gapminder_2007$log_gdp = log10(gapminder_2007$gdpPercap)
+exp_loggdp_lm = lm(lifeExp ~ log_gdp, data = gapminder_2007)
+ggplot(augment(exp_loggdp_lm)) + geom_point(aes(x = log_gdp, y = .resid)) + ggtitle("Residuals of log tranformation linear regression")
+```
+From the plot of log transformed linear model, it shows that the log transformation model do a much better work than simple linear model. The overall trend just looks like there is a positive linear relationship between two variables. Although the data which gdp less than 8.5 is  looser than the other part, it is still much better than the simple linear model.
+
+And from the residual plot of log transformed linear model, overall, the residuals plot around 0. The specific trend for residuals is much less than simple regression model. 
+
+So, the complicated model is better.
+
+
+# Patter for Different Continents
+```{r, fig.width=8, fig.height=5}
+ggplot(gapminder_2007, aes(x = gdpPercap, y = lifeExp)) + geom_point() +
+  geom_line(color = 'red') +
+  facet_wrap(~continent) +
+  labs(title = "The plot between GDP and Life Expectancy for each continent", x =" GDP per capita (dollars)", y = "Life Expectancy")
+```
+From the plots of each conntinents, the pattern for each continent is different than others. And the difference is significant. And there is no common trens among these plots. So, there is a good reason to believe that the differences are more complicated than additive or multiplicative shift. 
+
+## Part 2: Life expectancy over time by continent
+
+Overall life expectancy over time by continent 
+```{r}
+library(gapminder)
+ggplot(gapminder, aes(x = year, y =lifeExp)) + geom_point() + facet_wrap(~continent) +
+  ggtitle("Life expectancy over time by continent")
+```
+
+```{r}
+ggplot(gapminder, aes(x=year, y = lifeExp, color = continent)) +
+  geom_point() + ggtitle("Scatter plot for Life expectancy over time")
+```
+
+Average life expectancy over time by continent 
+```{r}
+gdp_summaries = gapminder %>%  group_by(continent, year) %>% summarise(lifeExp_mean = weighted.mean(lifeExp,pop))
+gdp_summaries
+```
+
+```{r}
+ggplot(gdp_summaries, aes(x=year, y=lifeExp_mean, color=continent)) +
+     geom_line(size=1) + 
+     geom_point(size=1.5) +
+  ylab("Average life expectancy") +
+  ggtitle("average life expectancy changed over time in each continent")
+```
+
+(1) How has average life expectancy changed over time in each continent? 
+The average life expectancy increased during the period from 1950s to 2000s overally. However, there exists a small fluctuation in Asia between 1960s to 1970s: a tiny decrease and then increase again.
+
+(2) Have some continents caught up (at least partially) to others? If so, is this just because of some countries in the continent, or is it more general?
+There is no continents catching up to other continents because of no intersection in the plot before. But we can see that all continents caught up others partially, especially Asia. Asia has reduced largely the distance of life expectancy of other continents. 
+
+```{r, fig.width=8, fig.height=5}
+ggplot(subset(gapminder, continent == "Asia"), aes(x = year, y = lifeExp, color = country)) + 
+  geom_point(size=1.0) + geom_line() +
+  ggtitle("Life expectancy over time by Country in Asia")
+```
+
+From the plot Life expectancy over time by country in Asia, we can see that almost every Asian country's life expectancy increase in the same level rate except one country Afghanistan with a very low increase rate. Therefore, Asia caught up other continents is becase a more general situation not just some countries in Asia. 
+
+```{r}
+ggplot(gdp_summaries, aes(x=year, y=lifeExp_mean, color=continent)) +
+    geom_point(size=1.0) +
+    stat_smooth(method = "lm", size=0.5, se = FALSE) +
+  ylab("Average Life expectancy") +
+  ggtitle("Average Life expectancy over time by Continent")
+```
+
+(3) Have the changes been linear, or has it been faster/slower in some periods for some continents? What might explain periods of faster/slower change?
+Since there are only two countries in Oceania, the sample size is too small to observe the changes of life expectancy. Except Oceania, the changes of Europe and America have been linear. The changes of Asia is not linear, and it has been slower between 1960s to 1970s; the reason may be poverty and wars occurred during that period in Asia. In Asia, it has been faster between 1970s to 1990s, and the reason may be the recovery of world economy and the improve of medical level. In Africa, it has been faster between 1970s to 1990s since the recovery of world economy and the improve of medical level.
+
+## Part 3 Changes in the relationship between GDP and life expectancy 
+
+(1) How has the relationship between GDP and life expectancy changed in each continent?
+```{r}
+ggplot(gapminder, aes(x = gdpPercap, y = lifeExp)) +
+    geom_point() +
+    stat_smooth(method = "loess", span = 0.75, method.args = list(degree = 2), se = FALSE) + 
+    facet_wrap(~ continent) + 
+    ggtitle("Relation btw GDP & life expectancy changed in each continent")
+```
+
+```{r}
+ggplot(subset(gapminder, continent == "Asia"), aes(x = gdpPercap, y = lifeExp)) +
+    geom_point() +
+    geom_smooth(method = "loess", span = 0.75, method.args = list(degree = 2), se = FALSE) +
+    ggtitle("Relation btw GDP & life expectancy changed in Asia")
+```
+
+In Asia, the relationship between GDP and life expectancy can be divided into two parts: first, the interval(0, 45000), the life expectancy increased overall with the GDP increasing with positive slope; second, the interval with GDP greater than 45000, the change of life expectancy became slow with negative slope. However, the sample size of GDP greater than 60000 is too small to conclude something with considering the influence of overfitting. 
+
+```{r}
+ggplot(subset(gapminder, continent == "Europe"), aes(x = gdpPercap, y = lifeExp)) +
+    geom_point() +
+    geom_smooth(method = "loess", span = 0.75, method.args = list(degree = 2), se = FALSE) +
+    ggtitle("Relation btw GDP & life expectancy changed in Europe")
+```
+
+In Europe, the relationship between GDP and life expectancy was fast with positive and bigger slope when GDP is smaller than 10000; when GDP is greater than 10000, the relationship between GDP and life expectancy was much slower with positive and smaller slope. 
+
+```{r}
+ggplot(subset(gapminder, continent == "Americas"), aes(x = gdpPercap, y = lifeExp)) +
+    geom_point() +
+    geom_smooth(method = "loess", span = 0.75, method.args = list(degree = 2), se = FALSE) +
+    ggtitle("Relation btw GDP & life expectancy changed in Americas")
+```
+
+In Americas, the relationship between GDP and life expectancy was fast with positive and bigger slope when GDP is smaller than 7000(estimated value); when GDP is greater than 7000, the relationship between GDP and life expectancy was much slower with positive and smaller slope. 
+
+```{r}
+ggplot(subset(gapminder, continent == "Africa"), aes(x = gdpPercap, y = lifeExp)) +
+    geom_point() +
+    geom_smooth(method = "loess", span = 0.75, method.args = list(degree = 2), se = FALSE) +
+    ggtitle("Relation btw GDP & life expectancy changed in Africa")
+```
+
+In Africa, the relationship between GDP and life expectancy can be divided into two parts: first, the interval(0, 10000), the life expectancy increased overall with the GDP increasing with positive slope; second, the interval with GDP greater than 10000, the change of life expectancy became slow with negative slope. However, the sample size of GDP greater than 15000 is too small to conclude something with considering the influence of overfitting.
+
+```{r}
+ggplot(subset(gapminder, continent == "Oceania"), aes(x = gdpPercap, y = lifeExp)) +
+    geom_point() +
+    geom_smooth(method = "loess", span = 0.75, method.args = list(degree = 2), se = FALSE) +
+    ggtitle("Relation btw GDP & life expectancy changed in Oceania")
+```
+
+In Oceania, the relationship between GDP and life expectancy can also be divided into two parts. When GDP is smaller than 20000(estimated value), the slope increased from 0 to a value (curvature > 0); when GDP is greater than 20000(estimated value), the slope decreased from this value to 0 (curvature < 0).
+
+The changes in life expectancy cannot be entirely explained by changes in GDP per capita, because from the coplot above, there are lots of variation and we cannot find a common trend to describe the relationship between life expectancy and GDP per capita for each continent. Thus, we cannot just use changes in GDP per capita to explain the changes in life expectancy, and there might be other factors also have effects on life expectancy. 
+
+```{r}
+library(GGally)
+ggpairs(gapminder[,c("gdpPercap", "year", "lifeExp")])
+```
+
+There is a time effect on life expectancy in addition to a GDP effect, because when year increase the life expectancy increase overall. Also, from the pair plots for variable "gdpPercap", "year" and "lifeExp", we can see that the correlation between year and life expectancy is about 0.584, which means that there is a positive relationship between year and life expectancy
+
+
+```{r, fig.width=10, fig.height=7}
+ggplot(subset(gapminder, country != "Kuwait"), aes(x = gdpPercap, y = lifeExp)) +
+    geom_point() +
+    stat_smooth(method = "loess", method.args = list(degree = 1), se = FALSE) +
+    facet_wrap(~ year, ncol = 4) + 
+    ggtitle("Relationship between GDP and life expectancy changed over time")
+ggsave("myplot.png")
+```
+
+
+From the facet plot of Relationship between GDP and life expectancy changed over time, we can see that there are some effects on the relationship between GDP per capita and life expectancy In the early years, like 1952 and 1957, changes in GDP per capita can lead to a huge change in life expectancy In the later period, changes in GDP per capita only lead to a huge change in life expectancy in certain range of GDP. For example, for the GDP per capita within the range 0 to 10000, the life expectancy increase very quickly as long as the increase of GDP. However, when the GDP per capita goes larger than 10000, the life expectancy only have very small change or even don't have changes. Thus, there is a "convergence" in the sense that the variable GDP per capita don??t matter as much as it used to. 
+
+That result might because in the early years GDP per capita for each country don't have very large difference, because the data points in the plot are more clustered. However, in the later years, the data points becomes more spread out, which means the difference of the GDP per capita for each country becomes larger. 
+
+
+```{r,fig.width=10, fig.height=6.5}
+ggplot(gapminder, aes(x = continent, y = lifeExp)) +
+    geom_point() +
+    facet_wrap(~ year, ncol = 4) + 
+    ggtitle("Changes in life expentancy for each continent over time")
+ggsave("3_11.png")
+```
+
+From the above plot, we can see that in the early years, the difference of life expectancy between each continent are very large. For example, in 1952, Europe has the highest life expectancy level which is about 75, and Africa has the lowest life expectancy level which is about 55. The difference of life expectancy between these two continents is about 20 years. Thus, the continent does matter to explain the changes in life expectancy. However, in the later years, the difference of life expectancy between each continent gradually reduced. For example, in 2007, the life expectancy level for Europe, Asia, America, and Oceania have almost same level. Although Africa still has the lowest life expectancy level. The difference between other continents is very small, which is about 2-3 years. Thus, the continent doesn't matter in the period around 1987 to 2007. 
+
+
+Facet plot of Relationship between GDP and life expectancy changed over time include outlier Kuwait:
+```{r, fig.width=7.5, fig.height=5}
+ggplot(gapminder, aes(x = gdpPercap, y = lifeExp)) +
+    geom_point() +
+    stat_smooth(method = "loess", method.args = list(degree = 1), se = FALSE) +
+    facet_wrap(~ year) + 
+    ggtitle("Relationship between GDP and life expectancy changed over time")
+ggsave("3_12.png")
+```
+
+There are some exceptions to general pattern:
+
+The facet plot of Relationship between GDP and life expectancy changed over time displays all countries' data points except Kuwait, because that country has very high GDP per capita in the period between 1952 to 1977, which can be considered as an outlier.
+
+Also, the facet plot of Changes in life expectancy for each continent over time displays that Oceania has very few data points compare with other continets, because Oceania only have two countries. Thus, it is very difficult for us to compare the life expectancy with other continent fairly. So, we can exclude that continent in our analysis. 
